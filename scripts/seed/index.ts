@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import 'dotenv/config';
+import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, Prisma } from '../../src/generated/prisma/client.js';
 import { uuid, generateDatesBetween, subDays, formatNumber, progressBar } from './utils.js';
@@ -125,8 +126,8 @@ async function findAdminUser(prisma: PrismaClient): Promise<string> {
   if (!adminUser) {
     throw new Error(
       'No admin user found in the database.\n' +
-        'Please ensure you have run the initial setup and created an admin user.\n' +
-        'The default admin user is created during first build (username: admin, password: umami).',
+      'Please ensure you have run the initial setup and created an admin user.\n' +
+      'The default admin user is created during first build (username: admin, password: umami).',
     );
   }
 
@@ -274,8 +275,8 @@ function createPrismaClient(): PrismaClient {
   if (!url) {
     throw new Error(
       'DATABASE_URL environment variable is not set.\n' +
-        'Please set DATABASE_URL in your .env file or environment.\n' +
-        'Example: DATABASE_URL=postgresql://user:password@localhost:5432/umami',
+      'Please set DATABASE_URL in your .env file or environment.\n' +
+      'Example: DATABASE_URL=postgresql://user:password@localhost:5432/umami',
     );
   }
 
@@ -286,12 +287,20 @@ function createPrismaClient(): PrismaClient {
   } catch {
     throw new Error(
       'DATABASE_URL is not a valid URL.\n' +
-        'Expected format: postgresql://user:password@host:port/database\n' +
-        `Received: ${url.substring(0, 30)}...`,
+      'Expected format: postgresql://user:password@host:port/database\n' +
+      `Received: ${url.substring(0, 30)}...`,
     );
   }
 
-  const adapter = new PrismaPg({ connectionString: url }, { schema });
+  const ssl = process.env.DATABASE_CA_CERT
+    ? {
+      ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n'),
+      rejectUnauthorized: true,
+    }
+    : undefined;
+
+  const pool = new Pool({ connectionString: url, ssl });
+  const adapter = new PrismaPg(pool, { schema });
 
   return new PrismaClient({
     adapter,

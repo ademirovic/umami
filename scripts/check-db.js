@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import 'dotenv/config';
 import { execSync } from 'node:child_process';
+import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import chalk from 'chalk';
 import semver from 'semver';
@@ -15,10 +16,15 @@ if (process.env.SKIP_DB_CHECK) {
 
 const url = new URL(process.env.DATABASE_URL);
 
-const adapter = new PrismaPg(
-  { connectionString: url.toString() },
-  { schema: url.searchParams.get('schema') },
-);
+const ssl = process.env.DATABASE_CA_CERT
+  ? {
+    ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n'),
+    rejectUnauthorized: true,
+  }
+  : undefined;
+
+const pool = new Pool({ connectionString: url.toString(), ssl });
+const adapter = new PrismaPg(pool, { schema: url.searchParams.get('schema') });
 
 const prisma = new PrismaClient({ adapter });
 

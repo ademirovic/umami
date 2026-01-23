@@ -1,3 +1,4 @@
+import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { readReplicas } from '@prisma/extension-read-replicas';
 import debug from 'debug';
@@ -273,9 +274,9 @@ function getSearchParameters(query: string, filters: Record<string, any>[]) {
       [key]:
         typeof value === 'string'
           ? {
-              [value]: query,
-              mode: 'insensitive',
-            }
+            [value]: query,
+            mode: 'insensitive',
+          }
           : parseFilter(value),
     };
   };
@@ -305,7 +306,15 @@ function getClient() {
   const logQuery = process.env.LOG_QUERY;
   const schema = getSchema();
 
-  const baseAdapter = new PrismaPg({ connectionString: url }, { schema });
+  const ssl = process.env.DATABASE_CA_CERT
+    ? {
+      ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n'),
+      rejectUnauthorized: true,
+    }
+    : undefined;
+
+  const pool = new Pool({ connectionString: url, ssl });
+  const baseAdapter = new PrismaPg(pool, { schema });
 
   const baseClient = new PrismaClient({
     adapter: baseAdapter,
@@ -323,7 +332,8 @@ function getClient() {
     return baseClient;
   }
 
-  const replicaAdapter = new PrismaPg({ connectionString: replicaUrl }, { schema });
+  const replicaPool = new Pool({ connectionString: replicaUrl, ssl });
+  const replicaAdapter = new PrismaPg(replicaPool, { schema });
 
   const replicaClient = new PrismaClient({
     adapter: replicaAdapter,
