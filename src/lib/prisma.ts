@@ -309,11 +309,18 @@ function getClient() {
   const ssl = process.env.DATABASE_CA_CERT
     ? {
       ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n'),
-      rejectUnauthorized: true,
     }
     : undefined;
 
-  const pool = new Pool({ connectionString: url, ssl });
+  const connectionUrl = new URL(url);
+  const pool = new Pool({
+    host: connectionUrl.hostname,
+    port: parseInt(connectionUrl.port) || 5432,
+    user: decodeURIComponent(connectionUrl.username),
+    password: decodeURIComponent(connectionUrl.password),
+    database: decodeURIComponent(connectionUrl.pathname.slice(1)),
+    ssl,
+  });
   const baseAdapter = new PrismaPg(pool, { schema });
 
   const baseClient = new PrismaClient({
@@ -332,7 +339,15 @@ function getClient() {
     return baseClient;
   }
 
-  const replicaPool = new Pool({ connectionString: replicaUrl, ssl });
+  const replicaConnectionUrl = new URL(replicaUrl);
+  const replicaPool = new Pool({
+    host: replicaConnectionUrl.hostname,
+    port: parseInt(replicaConnectionUrl.port) || 5432,
+    user: decodeURIComponent(replicaConnectionUrl.username),
+    password: decodeURIComponent(replicaConnectionUrl.password),
+    database: decodeURIComponent(replicaConnectionUrl.pathname.slice(1)),
+    ssl,
+  });
   const replicaAdapter = new PrismaPg(replicaPool, { schema });
 
   const replicaClient = new PrismaClient({

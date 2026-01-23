@@ -280,10 +280,9 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
-  let schema: string | undefined;
+  let connectionUrl: URL;
   try {
-    const connectionUrl = new URL(url);
-    schema = connectionUrl.searchParams.get('schema') ?? undefined;
+    connectionUrl = new URL(url);
   } catch {
     throw new Error(
       'DATABASE_URL is not a valid URL.\n' +
@@ -292,14 +291,22 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
+  const schema = connectionUrl.searchParams.get('schema') ?? undefined;
+
   const ssl = process.env.DATABASE_CA_CERT
     ? {
       ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n'),
-      rejectUnauthorized: true,
     }
     : undefined;
 
-  const pool = new Pool({ connectionString: url, ssl });
+  const pool = new Pool({
+    host: connectionUrl.hostname,
+    port: parseInt(connectionUrl.port) || 5432,
+    user: decodeURIComponent(connectionUrl.username),
+    password: decodeURIComponent(connectionUrl.password),
+    database: decodeURIComponent(connectionUrl.pathname.slice(1)),
+    ssl,
+  });
   const adapter = new PrismaPg(pool, { schema });
 
   return new PrismaClient({

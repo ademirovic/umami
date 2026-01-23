@@ -19,11 +19,17 @@ const url = new URL(process.env.DATABASE_URL);
 const ssl = process.env.DATABASE_CA_CERT
   ? {
     ca: process.env.DATABASE_CA_CERT.replace(/\\n/g, '\n'),
-    rejectUnauthorized: true,
   }
   : undefined;
 
-const pool = new Pool({ connectionString: url.toString(), ssl });
+const pool = new Pool({
+  host: url.hostname,
+  port: parseInt(url.port) || 5432,
+  user: decodeURIComponent(url.username),
+  password: decodeURIComponent(url.password),
+  database: decodeURIComponent(url.pathname.slice(1)),
+  ssl,
+});
 const adapter = new PrismaPg(pool, { schema: url.searchParams.get('schema') });
 
 const prisma = new PrismaClient({ adapter });
