@@ -79,7 +79,14 @@ async function checkDatabaseVersion() {
 
 async function applyMigration() {
   if (!process.env.SKIP_DB_MIGRATION) {
-    console.log(execSync('prisma migrate deploy').toString());
+    console.log('Applying database migrations...');
+    try {
+      // Use stdio: 'inherit' to stream the output from the command in real-time.
+      // This will show detailed prisma output instead of hanging silently.
+      execSync('prisma migrate deploy', { stdio: 'inherit' });
+    } catch (e) {
+      throw new Error(`Migration command failed: ${e.message}`);
+    }
 
     success('Database is up to date.');
   }
